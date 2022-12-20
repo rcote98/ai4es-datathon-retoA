@@ -1,7 +1,7 @@
 # Datathon AI4ES Reto A
 satélites, cosechadores, tres o cuatro (empresas) explotadoras 🎶 
 
-## Description
+## Description (grande ChatGPT)
 
 Artificial intelligence (AI) has made significant strides in recent years, particularly in the field of image recognition. One of the most promising applications of AI in image recognition is the detection of crop diseases from aerial drone images.
 
