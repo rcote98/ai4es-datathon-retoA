@@ -1,0 +1,65 @@
+Class,Images
+Healthy,1134
+Infected only with DISEASE1: 1 to 5,374
+Infected only with DISEASE1: 6 to 10,103
+Infected only with DISEASE1: 11 to 15,55
+Infected only with DISEASE1: 16 to 20,31
+Infected only with DISEASE1: 21 to 25,31
+Infected only with DISEASE1: 26 to 30,18
+Infected only with DISEASE1: 31 to 35,15
+Infected only with DISEASE1: 36 to 40,9
+Infected only with DISEASE1: 41 to 45,5
+Infected only with DISEASE1: 46 to 50,4
+Infected only with DISEASE1: 51 to 55,4
+Infected only with DISEASE1: 56 to 60,3
+Infected only with DISEASE1: 61 to 65,4
+Infected only with DISEASE1: 66 to 70,4
+Infected only with DISEASE1: 71 to 75,1
+Infected only with DISEASE1: 76 to 80,1
+Infected only with DISEASE1: 81 to 85,2
+Infected only with DISEASE1: 86 to 90,0
+Infected only with DISEASE1: 91 to 95,0
+Infected only with DISEASE1: 96 to 100,0
+Infected only with DISEASE2: 1 to 5,729
+Infected only with DISEASE2: 6 to 10,409
+Infected only with DISEASE2: 11 to 15,319
+Infected only with DISEASE2: 16 to 20,314
+Infected only with DISEASE2: 21 to 25,261
+Infected only with DISEASE2: 26 to 30,239
+Infected only with DISEASE2: 31 to 35,194
+Infected only with DISEASE2: 36 to 40,203
+Infected only with DISEASE2: 41 to 45,161
+Infected only with DISEASE2: 46 to 50,100
+Infected only with DISEASE2: 51 to 55,95
+Infected only with DISEASE2: 56 to 60,82
+Infected only with DISEASE2: 61 to 65,60
+Infected only with DISEASE2: 66 to 70,76
+Infected only with DISEASE2: 71 to 75,55
+Infected only with DISEASE2: 76 to 80,71
+Infected only with DISEASE2: 81 to 85,49
+Infected only with DISEASE2: 86 to 90,72
+Infected only with DISEASE2: 91 to 95,71
+Infected only with DISEASE2: 96 to 100,110
+Infected only with DISEASE3: 1 to 5,1065
+Infected only with DISEASE3: 6 to 10,554
+Infected only with DISEASE3: 11 to 15,236
+Infected only with DISEASE3: 16 to 20,142
+Infected only with DISEASE3: 21 to 25,86
+Infected only with DISEASE3: 26 to 30,92
+Infected only with DISEASE3: 31 to 35,61
+Infected only with DISEASE3: 36 to 40,55
+Infected only with DISEASE3: 41 to 45,30
+Infected only with DISEASE3: 46 to 50,26
+Infected only with DISEASE3: 51 to 55,14
+Infected only with DISEASE3: 56 to 60,17
+Infected only with DISEASE3: 61 to 65,14
+Infected only with DISEASE3: 66 to 70,11
+Infected only with DISEASE3: 71 to 75,24
+Infected only with DISEASE3: 76 to 80,19
+Infected only with DISEASE3: 81 to 85,41
+Infected only with DISEASE3: 86 to 90,42
+Infected only with DISEASE3: 91 to 95,26
+Infected only with DISEASE3: 96 to 100,46
+Infected with DISEASE1 and DISEASE2:,22
+Infected with DISEASE1 and DISEASE3:,391
+Infected with DISEASE2 and DISEASE3:,44
