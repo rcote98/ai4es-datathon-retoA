@@ -39,6 +39,7 @@ snuggs==1.4.7
 tensorboardX==2.5.1
 torch==1.13.1
 torchmetrics==0.11.0
+torchvision==0.14.1
 tqdm==4.64.1
 typing_extensions==4.4.0
 urllib3==1.26.13
