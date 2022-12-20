@@ -1,7 +1,8 @@
 # Datathon AI4ES Reto A
+
 satélites, cosechadores, tres o cuatro (empresas) explotadoras 🎶 
 
-## Description (grande ChatGPT)
+## Description (by ChatGPT)
 
 Artificial intelligence (AI) has made significant strides in recent years, particularly in the field of image recognition. One of the most promising applications of AI in image recognition is the detection of crop diseases from aerial drone images.
 
@@ -21,8 +22,13 @@ cd ai4es-datathon-retoA                                     # move in the folder
 python3 -m venv ai4es_env                                   # create virtualenv
 source ai4es_env/bin/activate                               # activate it
 pip install -r requirements.txt                             # install dependencies
-#python -m pip install -e .                                 # install dev package (espero que no)
 ```
+
+## Estructure
+
+- **data.py:** Carga los datos de las imágenes para la red neuronal.
+- **network.py:** Estructura de la red neuronal.
+- **train.py:** Script de entrenamiento de la red.
 
 ## Visualize Training Progress
 ```bash
