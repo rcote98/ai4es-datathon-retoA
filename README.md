@@ -26,7 +26,7 @@ pip install -r requirements.txt                             # install dependenci
 
 ## Estructure
 
-- **data.py:** Carga los datos de las imágenes para la red neuronal.
+- **data.py:** Carga los datos de las imágenes.
 - **network.py:** Estructura de la red neuronal.
 - **train.py:** Script de entrenamiento de la red.
 
