@@ -20,6 +20,7 @@ from typing import Iterable
 from fastprogress import progress_bar
 
 class RunningStatistics:
+
     '''Records mean and variance of the final `n_dims` dimension over other dimensions across items. So collecting across `(l,m,n,o)` sized
        items with `n_dims=1` will collect `(l,m,n)` sized statistics while with `n_dims=2` the collected statistics will be of size `(l,m)`.
        Uses the algorithm from Chan, Golub, and LeVeque in "Algorithms for computing the sample variance: analysis and recommendations":
@@ -28,6 +29,7 @@ class RunningStatistics:
        with `variance2` and a sum of `t2`. The algorithm is proven to be numerically stable but there is a reasonable loss of accuracy (~0.1% error).
        Note that collecting minimum and maximum values is reasonably innefficient, adding about 80% to the running time, and hence is disabled by default.
     '''
+    
     def __init__(self, n_dims:int=2, record_range=False):
         self._n_dims,self._range = n_dims,record_range
         self.n,self.sum,self.min,self.max = 0,None,None,None
@@ -151,10 +153,6 @@ class ImageDataset(Dataset):
             olabel = self.target_transform(olabel)
 
         return image, labels
-
-
-
-
 
 class ImageDataModule(LightningDataModule):
 
