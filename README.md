@@ -30,6 +30,11 @@ pip install -r requirements.txt                             # install dependenci
 - **network.py:** Estructura de la red neuronal.
 - **train.py:** Script de entrenamiento de la red.
 
+## Ideas
+
+- Incluir epoca del año?
+- Clustering y distintos regresores?
+
 ## Visualize Training Progress
 ```bash
 tensorboard --logdir=[whatever-dir-name]/lightning_logs/

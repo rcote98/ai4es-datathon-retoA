@@ -1,5 +1,5 @@
 """
-DataModule for the neural network.
+DataModule for the drone images.
 
 Loads and preprocesses the image data on demand.
 
@@ -45,7 +45,6 @@ class RunningStatistics():
     with `variance2` and a sum of `t2`. The algorithm is proven to be numerically stable but there is a reasonable loss of accuracy (~0.1% error).
     Note that collecting minimum and maximum values is reasonably inefficient, adding about 80% to the running time, and hence is disabled by default.
     '''
-
     # gracias random internet guy que posteó esto en un foro aleatorio, may your crops grow strong this spring
     
     def __init__(self, n_dims:int=2, record_range=False):
@@ -167,13 +166,13 @@ class ImageDataset(Dataset):
 
         # image transforms
         tr = tv.transforms.Compose([
-            tv.transforms.ToTensor(),    # from numpy HxWxC to tensor CxHXW 
-            tv.transforms.Resize(size=self.image_shape)
+            tv.transforms.ToTensor(),                       # from numpy HxWxC to tensor CxHXW 
+            tv.transforms.Resize(size=self.image_shape)     # resize to chosen size
         ])
 
         # convert to tensort
         image = tr(image)
-        labels = torch.Tensor(labels)
+        labels = torch.Tensor(labels)/100
 
         if self.transform:
             image = self.transform(image)
@@ -197,6 +196,7 @@ class ImageDataModule(LightningDataModule):
             eval_size: float = 0.2,
             batch_size: int = 128,
             random_state: int = 0,
+            dataset_sample: float = None,
             image_shape: np.ndarray = [110,330],
             num_workers: int = mp.cpu_count()//2,
             ) -> None:
@@ -204,6 +204,9 @@ class ImageDataModule(LightningDataModule):
         super().__init__()
 
         dataset = pd.read_csv(csv_file)
+
+        if dataset_sample is not None:
+            dataset = dataset.sample(frac=dataset_sample, random_state=random_state).reset_index()
 
         self.test_size = test_size
         self.eval_size = eval_size
@@ -249,28 +252,28 @@ class ImageDataModule(LightningDataModule):
     def train_dataloader(self):
         """ Returns the training DataLoader. """
         return DataLoader(self.ds_train, batch_size=self.batch_size, 
-            shuffle=self.shuffle_samples, num_workers=self.num_workers)
+            shuffle=True, num_workers=self.num_workers)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     def val_dataloader(self):
         """ Returns the validation DataLoader. """
         return DataLoader(self.ds_eval, batch_size=self.batch_size, 
-            shuffle=self.shuffle_samples, num_workers=self.num_workers)
+            shuffle=False, num_workers=self.num_workers)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     def test_dataloader(self):
         """ Returns the test DataLoader. """
         return DataLoader(self.ds_test, batch_size=self.batch_size, 
-            shuffle=self.shuffle_samples, num_workers=self.num_workers)
+            shuffle=True, num_workers=self.num_workers)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     def predict_dataloader(self):
         """ Returns the test DataLoader. """
         return DataLoader(self.ds_test, batch_size=self.batch_size, 
-            shuffle=self.shuffle_samples, num_workers=self.num_workers) 
+            shuffle=True, num_workers=self.num_workers) 
 
 
 # =========================================================================== #
