@@ -128,6 +128,96 @@ class ConvEncoder(LightningModule):
     def get_output_shape(self):
         return self.out_channels*2
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+class ConvEncoder2(LightningModule): 
+
+    """ Convolutional encoder, shared by all tasks. """
+
+    def __init__(self, 
+        in_channels: int, 
+        out_channels: int, 
+        conv_kernel_size: int,
+        pool_kernel_size: int, 
+        img_height: int,
+        img_width: int,
+        dropout: float = 0.0) -> None:
+
+        super().__init__()
+        self.save_hyperparameters()
+        
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.conv_kernel_size = conv_kernel_size
+        self.pool_kernel_size = pool_kernel_size
+        self.img_height = img_height
+        self.img_width = img_width
+        self.dropout = dropout
+
+
+        def conv_block(input_size, output_size):
+            return nn.Sequential(
+                nn.Conv2d(input_size, output_size, (3, 3)), 
+                nn.ReLU(), nn.BatchNorm2d(output_size), 
+                nn.MaxPool2d((2, 2)))
+
+        self.encoder = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels//8, 
+                kernel_size=conv_kernel_size, padding='same'),
+            nn.BatchNorm2d(num_features=out_channels//8),
+            nn.ReLU(),
+
+            nn.MaxPool2d(kernel_size=pool_kernel_size),
+            nn.Dropout(dropout),
+
+            nn.Conv2d(in_channels=out_channels//8 , out_channels= out_channels//4, 
+                kernel_size=conv_kernel_size, padding='same'),
+            nn.BatchNorm2d(num_features=out_channels//4),
+            nn.ReLU(),
+            
+            nn.AvgPool2d(kernel_size=pool_kernel_size),
+            nn.Dropout(dropout),
+
+            nn.Conv2d(in_channels=out_channels//4, out_channels=out_channels//2, 
+                kernel_size=conv_kernel_size, padding='same'),
+            nn.BatchNorm2d(num_features=out_channels//2),
+            nn.ReLU(),
+            
+            nn.Dropout(dropout),
+
+            nn.Conv2d(in_channels=out_channels//2, out_channels=out_channels, 
+                kernel_size=conv_kernel_size, padding='same'),
+            nn.BatchNorm2d(num_features=out_channels),
+            nn.ReLU())
+        self.encoder = self.encoder.float()
+
+        # get flattened dimensions after encoder
+        image_dim = (1, in_channels, img_height, img_width)
+        features = self.encoder(torch.rand(image_dim).float())
+        self.encoder_feats = features.view(features.size(0), -1).size(1)
+        self.encoder_img_height = features.shape[2]
+        self.encoder_img_width = features.shape[3]
+
+        self.flatten = nn.Flatten(start_dim=1)
+
+        self.linear = LinSeq(
+            in_features=self.encoder_feats,
+            hid_features=out_channels,
+            out_features=out_channels*2)
+
+    def forward(self, x):
+        enc_out = self.encoder(x.float())
+        flt_out = self.flatten(enc_out)
+        return self.linear(flt_out)
+
+    def get_encoder_features(self):
+        image_dim = (1, self.in_channels, self.img_height, self.img_width)
+        features = self.encoder(torch.rand(image_dim).float())
+        return features.view(features.size(0), -1).size(1)
+
+    def get_output_shape(self):
+        return self.out_channels*2
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 class ConvDecoder(LightningModule): 

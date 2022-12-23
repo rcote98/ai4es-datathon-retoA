@@ -24,7 +24,7 @@ from network_aux import ConvEncoder, LinSeq
 # =========================================================================== #
 # =========================================================================== #
 
-class PredictionNetwork(LightningModule):
+class PredictionNetwork_V0(LightningModule):
 
     def __init__(self,      
         learning_rate: float = 1e-5

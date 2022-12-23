@@ -20,11 +20,12 @@ import torch
 import numpy as np
 
 from network_aux import ConvEncoder, LinSeq
+from densenet import DenseNet
 
 # =========================================================================== #
 # =========================================================================== #
 
-class PredictionNetwork(LightningModule):
+class PredictionNetwork_V1(LightningModule):
 
     def __init__(self,      
         learning_rate: float = 1e-5
@@ -35,31 +36,41 @@ class PredictionNetwork(LightningModule):
 
         self.learning_rate = learning_rate
 
-        # main encoder
-        self.encoder = ConvEncoder(
-            in_channels=5,
-            out_channels=128,
-            conv_kernel_size=3,
-            pool_kernel_size=3,
-            img_height=110,
-            img_width=330
+        # # main encoder
+        # self.encoder = ConvEncoder(
+        #     in_channels=5,
+        #     out_channels=128,
+        #     conv_kernel_size=3,
+        #     pool_kernel_size=3,
+        #     img_height=110,
+        #     img_width=330
+        # )
+
+
+        # encoder_out_feats = self.encoder.get_output_shape()
+
+        # self.decoder = nn.Sequential(
+        #     LinSeq(in_features=encoder_out_feats,
+        #     hid_features=encoder_out_feats*2,
+        #     out_features=3,
+        #     hid_layers=0), nn.Sigmoid())
+
+        self.densenet = nn.Sequential(
+            DenseNet(
+                growth_rate=12,
+                num_classes=3),
+            nn.Sigmoid()
         )
-
-        encoder_out_feats = self.encoder.get_output_shape()
-
-        self.decoder = nn.Sequential(
-            LinSeq(in_features=encoder_out_feats,
-            hid_features=encoder_out_feats*2,
-            out_features=3,
-            hid_layers=0), nn.Sigmoid())
 
         for phase in ["train", "val", "test"]:
                 # self.__setattr__(f"{phase}_r2", tm.R2Score())
                 self.__setattr__(f"{phase}_mae",  tm.MeanAbsoluteError())
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """ Use for inference only (separate from training_step)"""
-        return self.decoder(self.encoder(x))
+        #return self.decoder(self.encoder(x))
+        x = x.type(torch.float32)
+        return self.densenet(x)
 
     # STEPS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #

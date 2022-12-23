@@ -114,10 +114,18 @@ class ImageDataset(Dataset):
             dataset: pd.DataFrame,
             image_shape: np.ndarray,
             transform = None, 
-            target_transform = None
+            target_transform = None,
+            use_additional_data: bool = True,
             ) -> None:
 
         self.dataset, self.image_shape = dataset, image_shape
+        
+        # additional data from file names
+        self.use_additional_data = use_additional_data
+        if self.use_additional_data:
+            self.camera = torch.from_numpy(pd.get_dummies(dataset["CAMERA"]).values)
+            self.month = torch.nn.functional.one_hot(torch.from_numpy((dataset["MONTH"]-1).values), 12)
+        
         self.transform, self.target_transform = transform, target_transform
 
     def __len__(self) -> int:
@@ -125,7 +133,7 @@ class ImageDataset(Dataset):
         return len(self.dataset)
 
     @staticmethod
-    def _load_image(image_path, remove_negs=True, normalization=False):
+    def load_image(image_path, remove_negs=True, normalization=False):
         
         """ Load the image as a numpy array. """
 
@@ -161,8 +169,9 @@ class ImageDataset(Dataset):
         """ Return an entry (x, y) from the dataset. """
 
         row = self.dataset.iloc[idx]
-        image = self._load_image(row["PLOT_FILE"])
-        labels = row[["DISEASE1","DISEASE2","DISEASE3"]].values.astype(np.float32)
+        image = self.load_image(row["PLOT_FILE"])
+        
+        labels = row[["DISEASE1","DISEASE2","DISEASE3"]].values.astype(np.float64)
 
         # image transforms
         tr = tv.transforms.Compose([
@@ -179,7 +188,12 @@ class ImageDataset(Dataset):
         if self.target_transform:
             olabel = self.target_transform(olabel)
 
-        return image, labels
+        if self.use_additional_data:
+            month = self.month[idx]
+            camera = self.month[idx]
+            return (image, month, camera), labels
+        else:
+            return image, labels
 
 # =========================================================================== #
 # =========================================================================== #
@@ -204,6 +218,9 @@ class ImageDataModule(LightningDataModule):
         super().__init__()
 
         dataset = pd.read_csv(csv_file)
+        dataset["CAMERA"] = dataset["PLOT_FILE"].str.split("/").str[1]
+        dataset["DATE"] = pd.to_datetime(dataset["PLOT_FILE"].str.split("/").str[3].str.split("_").str[0])
+        dataset["MONTH"] = dataset["DATE"].dt.month
 
         if dataset_sample is not None:
             dataset = dataset.sample(frac=dataset_sample, random_state=random_state).reset_index()
@@ -241,9 +258,14 @@ class ImageDataModule(LightningDataModule):
             with np.load(self.norm_cts_file, allow_pickle=True) as data:
                 mean, std = torch.from_numpy(data["mean"]), torch.from_numpy(data["std"])
 
+        train_transform = tv.transforms.Compose([
+            tv.transforms.Normalize(mean, std),
+            tv.transforms.RandomHorizontalFlip(),
+            tv.transforms.RandomVerticalFlip(),
+            ])
         transform = tv.transforms.Compose([tv.transforms.Normalize(mean, std)])
 
-        self.ds_train.transform = transform
+        self.ds_train.transform = train_transform
         self.ds_eval.transform = transform
         self.ds_test.transform = transform
 
@@ -277,7 +299,37 @@ class ImageDataModule(LightningDataModule):
 
 
 # =========================================================================== #
-# # =========================================================================== #
+# =========================================================================== #
+
+def input_from_image_file(
+        fname:str, 
+        image_shape: np.ndarray = [110,330],
+        use_additional_data: bool = True
+        ) -> torch.Tensor:
+
+    image = ImageDataset.load_image(fname)
+
+    with np.load(ImageDataModule.norm_cts_file, allow_pickle=True) as data:
+        mean, std = torch.from_numpy(data["mean"]), torch.from_numpy(data["std"])
+    
+    tr = tv.transforms.Compose([
+            tv.transforms.ToTensor(),                   # from numpy HxWxC to tensor CxHXW 
+            tv.transforms.Resize(size=image_shape),     # resize to chosen size
+            tv.transforms.Normalize(mean, std),         # normalize
+        ])
+
+    if use_additional_data:
+
+        month = self.month[idx]
+
+        
+        camera = self.month[idx]
+
+        return tr(image), 
+
+    else:
+
+        return tr(image)
 
 if __name__ == "__main__":
 

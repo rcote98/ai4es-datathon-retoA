@@ -11,8 +11,11 @@ Quite self explanatory.
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import LightningModule
 
-from network_v0 import PredictionNetwork
+from network_v0 import PredictionNetwork_V0
+from network_v1 import PredictionNetwork_V1
+
 from data import ImageDataModule
 from pathlib import Path
 import time
@@ -20,10 +23,18 @@ import time
 # Settings
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-FOLDER = Path("models/test")
+FOLDER = Path("models/test2")
 
 RANDOM_STATE = 0
 seed_everything(RANDOM_STATE)
+
+SETUPS = {
+    "v0": [PredictionNetwork_V0, "safe/v0_best.ckpt", False],
+    "v1": [PredictionNetwork_V1, "safe/v1_best.ckpt", False]
+}
+
+LOAD_BEST = True
+SETUP = SETUPS["v1"]
 
 # Data Setup
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -47,11 +58,14 @@ print("DONE! ", end_time - start_time, "seconds")
 
 print("Creating model...", end="")
 start_time = time.perf_counter()
-model = PredictionNetwork(
+model: LightningModule = SETUP[0](
     learning_rate=1e-5
 )
 end_time = time.perf_counter()
 print("DONE! ", end_time - start_time, "seconds")
+
+if LOAD_BEST:
+    model = model.load_from_checkpoint(SETUP[1])
 
 # Trainer Setup
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
