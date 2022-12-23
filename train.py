@@ -12,7 +12,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning import Trainer, seed_everything
 
-from network import BasicConvolutionalRegressor
+from network_v0 import PredictionNetwork
 from data import ImageDataModule
 from pathlib import Path
 import time
@@ -35,7 +35,7 @@ dm = ImageDataModule(
     test_size=0.2,
     eval_size=0.2,
     batch_size=64,
-    dataset_sample=0.2,
+    dataset_sample=1,
     random_state=RANDOM_STATE,
     image_shape=[110,330]
 )
@@ -47,7 +47,7 @@ print("DONE! ", end_time - start_time, "seconds")
 
 print("Creating model...", end="")
 start_time = time.perf_counter()
-model = BasicConvolutionalRegressor(
+model = PredictionNetwork(
     learning_rate=1e-5
 )
 end_time = time.perf_counter()
@@ -59,11 +59,12 @@ print("DONE! ", end_time - start_time, "seconds")
 print("Setup the trainer...")
 start_time = time.perf_counter()
 
-early_stop = EarlyStopping(monitor="val_mae", mode="min", patience=10)
+early_stop = EarlyStopping(monitor="val_mae", mode="min", patience=5)
 lr_monitor = LearningRateMonitor(logging_interval='step')
 model_checkpoint = ModelCheckpoint(FOLDER, save_last=True)
 
 trainer = Trainer(
+    accelerator="gpu",
     default_root_dir=FOLDER,
     callbacks=[lr_monitor, model_checkpoint, early_stop],
     log_every_n_steps=1,
