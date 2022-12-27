@@ -113,16 +113,16 @@ class ImageDataset(Dataset):
     def __init__(self,
             dataset: pd.DataFrame,
             image_shape: np.ndarray,
+            use_flags: bool = True,
+            use_labels: bool = True,
             transform = None, 
             target_transform = None,
-            use_additional_data: bool = True,
             ) -> None:
 
         self.dataset, self.image_shape = dataset, image_shape
-        
-        # additional data from file names
-        self.use_additional_data = use_additional_data
-        if self.use_additional_data:
+        self.use_flags, self.use_labels  = use_flags, use_labels
+
+        if use_flags:
             self.camera = torch.from_numpy(pd.get_dummies(dataset["CAMERA"]).values)
             self.month = torch.nn.functional.one_hot(torch.from_numpy((dataset["MONTH"]-1).values), 12)
         
@@ -171,29 +171,33 @@ class ImageDataset(Dataset):
         row = self.dataset.iloc[idx]
         image = self.load_image(row["PLOT_FILE"])
         
-        labels = row[["DISEASE1","DISEASE2","DISEASE3"]].values.astype(np.float64)
-
-        # image transforms
+        # basic image transforms
         tr = tv.transforms.Compose([
             tv.transforms.ToTensor(),                       # from numpy HxWxC to tensor CxHXW 
             tv.transforms.Resize(size=self.image_shape)     # resize to chosen size
         ])
 
-        # convert to tensort
+        # apply transforms
         image = tr(image)
-        labels = torch.Tensor(labels)/100
-
         if self.transform:
             image = self.transform(image)
-        if self.target_transform:
-            olabel = self.target_transform(olabel)
 
-        if self.use_additional_data:
-            month = self.month[idx]
-            camera = self.month[idx]
-            return (image, month, camera), labels
+        # obtain labels
+        if self.use_labels:
+            labels = row[["DISEASE1","DISEASE2","DISEASE3"]].values.astype(np.float64)
+            labels = torch.Tensor(labels)/100
+
+        if self.use_flags:
+            flags = torch.cat((self.month[idx], self.camera[idx]), 1) 
+            if self.use_labels:
+                return (image, flags), labels
+            else:
+                return image, flags
         else:
-            return image, labels
+            if self.use_labels:
+                return image, labels
+            else:
+                return image
 
 # =========================================================================== #
 # =========================================================================== #
@@ -205,11 +209,13 @@ class ImageDataModule(LightningDataModule):
     norm_cts_file = Path("norm_cts.npz")
 
     def __init__(self, 
-            csv_file: str = "csvs/train.csv",
+            train_csv_file: str = "csvs/train.csv",
+            pred_csv_file: str = "csvs/test.csv",
             test_size: float = 0.2,
             eval_size: float = 0.2,
             batch_size: int = 128,
             random_state: int = 0,
+            use_flags: bool = True,
             dataset_sample: float = None,
             image_shape: np.ndarray = [110,330],
             num_workers: int = mp.cpu_count()//2,
@@ -217,13 +223,35 @@ class ImageDataModule(LightningDataModule):
         
         super().__init__()
 
-        dataset = pd.read_csv(csv_file)
-        dataset["CAMERA"] = dataset["PLOT_FILE"].str.split("/").str[1]
-        dataset["DATE"] = pd.to_datetime(dataset["PLOT_FILE"].str.split("/").str[3].str.split("_").str[0])
-        dataset["MONTH"] = dataset["DATE"].dt.month
+        self.train_csv_file = train_csv_file
+        self.train_dataset = pd.read_csv(train_csv_file)
+
+        self.pred_csv_file = pred_csv_file
+        self.pred_dataset = pd.read_csv(pred_csv_file)
+
+        # Prepare flags if needed
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+        if use_flags:
+
+            for df in [self.train_dataset, self.pred_dataset]:
+
+                dataset["CAMERA"] = dataset["PLOT_FILE"].str.split("/").str[1]
+                dataset["DATE"] = pd.to_datetime(dataset["PLOT_FILE"].str.split("/").str[3].str.split("_").str[0])
+                dataset["MONTH"] = dataset["DATE"].dt.month
+
+            self.flags_size = 12 + dataset["CAMERA"].nunique()
+        else:
+            self.flags_size = None
+
+        # Get a smaller sample of the dataset (testing purposes)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
         if dataset_sample is not None:
             dataset = dataset.sample(frac=dataset_sample, random_state=random_state).reset_index()
+
+        # Set attributes
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
         self.test_size = test_size
         self.eval_size = eval_size
@@ -231,9 +259,11 @@ class ImageDataModule(LightningDataModule):
 
         self.num_workers = num_workers
         self.random_state = random_state
+        self.use_flags = use_flags
 
         self.image_shape = image_shape
 
+        # Train/eval/test split
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
         idx_train_eval, idx_test = train_test_split(np.arange(len(dataset)), test_size=self.test_size, 
@@ -242,11 +272,18 @@ class ImageDataModule(LightningDataModule):
         idx_train, idx_eval = train_test_split(idx_train_eval, test_size=self.eval_size, 
             random_state=self.random_state, shuffle=True)
 
-        self.ds_train = ImageDataset(dataset.iloc[idx_train].reset_index(), self.image_shape)
-        self.ds_eval  = ImageDataset(dataset.iloc[idx_eval].reset_index(), self.image_shape)
-        self.ds_test  = ImageDataset(dataset.iloc[idx_test].reset_index(), self.image_shape)
+        # Create datasets
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-        # calculate normalization constants (not fucking trivial)
+        self.ds_train = ImageDataset(dataset.iloc[idx_train].reset_index(), 
+            image_shape=self.image_shape, use_additional_data=self.use_additional_data)
+        self.ds_eval  = ImageDataset(dataset.iloc[idx_eval].reset_index(), 
+            image_shape=self.image_shape, use_additional_data=self.use_additional_data)
+        self.ds_test  = ImageDataset(dataset.iloc[idx_test].reset_index(), 
+            image_shape=self.image_shape, use_additional_data=self.use_additional_data)
+
+        # Calculate normalization constants (not f***ing trivial)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
         if not self.norm_cts_file.exists():
             stats = RunningStatistics(n_dims=2)
             print("Computing normalization constants...")
@@ -258,6 +295,8 @@ class ImageDataModule(LightningDataModule):
             with np.load(self.norm_cts_file, allow_pickle=True) as data:
                 mean, std = torch.from_numpy(data["mean"]), torch.from_numpy(data["std"])
 
+        #  Assign new transforms
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
         train_transform = tv.transforms.Compose([
             tv.transforms.Normalize(mean, std),
             tv.transforms.RandomHorizontalFlip(),
@@ -288,48 +327,18 @@ class ImageDataModule(LightningDataModule):
     def test_dataloader(self):
         """ Returns the test DataLoader. """
         return DataLoader(self.ds_test, batch_size=self.batch_size, 
-            shuffle=True, num_workers=self.num_workers)
+            shuffle=False, num_workers=self.num_workers)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     def predict_dataloader(self):
         """ Returns the test DataLoader. """
         return DataLoader(self.ds_test, batch_size=self.batch_size, 
-            shuffle=True, num_workers=self.num_workers) 
+            shuffle=False, num_workers=self.num_workers) 
 
 
 # =========================================================================== #
 # =========================================================================== #
-
-def input_from_image_file(
-        fname:str, 
-        image_shape: np.ndarray = [110,330],
-        use_additional_data: bool = True
-        ) -> torch.Tensor:
-
-    image = ImageDataset.load_image(fname)
-
-    with np.load(ImageDataModule.norm_cts_file, allow_pickle=True) as data:
-        mean, std = torch.from_numpy(data["mean"]), torch.from_numpy(data["std"])
-    
-    tr = tv.transforms.Compose([
-            tv.transforms.ToTensor(),                   # from numpy HxWxC to tensor CxHXW 
-            tv.transforms.Resize(size=image_shape),     # resize to chosen size
-            tv.transforms.Normalize(mean, std),         # normalize
-        ])
-
-    if use_additional_data:
-
-        month = self.month[idx]
-
-        
-        camera = self.month[idx]
-
-        return tr(image), 
-
-    else:
-
-        return tr(image)
 
 if __name__ == "__main__":
 

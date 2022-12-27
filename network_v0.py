@@ -19,7 +19,7 @@ import torch
 
 import numpy as np
 
-from network_aux import ConvEncoder, LinSeq
+from arch_v0 import ConvEncoder, LinSeq
 
 # =========================================================================== #
 # =========================================================================== #

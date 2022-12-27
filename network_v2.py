@@ -19,7 +19,7 @@ import torch
 
 import numpy as np
 
-from densenet import DenseNet
+from arch_v2 import DenseNet
 
 # =========================================================================== #
 # =========================================================================== #
@@ -47,7 +47,6 @@ class PredictionNetwork_V2(LightningModule):
         #     img_width=330
         # )
 
-
         # encoder_out_feats = self.encoder.get_output_shape()
 
         # self.decoder = nn.Sequential(
@@ -56,12 +55,17 @@ class PredictionNetwork_V2(LightningModule):
         #     out_features=3,
         #     hid_layers=0), nn.Sigmoid())
 
-        self.densenet = DenseNet(growth_rate=12, num_classes=3)
+        self.densenet = DenseNet(growth_rate=12,
+        block_config=(6,12,24,16))
         buffer =  cameras + 12
 
         feats = self.densenet.num_features + buffer
         self.lin1 =  nn.Linear(in_features=feats, out_features=feats//2, dtype=torch.float32)
-        self.lin2 = nn.Linear(in_features=feats//2 + buffer, out_features=num_classes, dtype=torch.float32)
+ 
+        self.lin2 = nn.Sequential(       
+            nn.Linear(in_features=feats//2 + buffer, out_features=num_classes, dtype=torch.float32),
+            nn.Sigmoid()
+        )
         
         for phase in ["train", "val", "test"]:
                 # self.__setattr__(f"{phase}_r2", tm.R2Score())
@@ -72,9 +76,9 @@ class PredictionNetwork_V2(LightningModule):
         #return self.decoder(self.encoder(x))
         image, month, camera = x[0].type(torch.float32), x[1].type(torch.float32), x[2].type(torch.float32)        
         out = self.densenet(image)
-        out = torch.cat((out, month, camera))
+        out = torch.cat((out, month, camera), 1)
         out = self.lin1(out)
-        out = torch.cat((out, month, camera))
+        out = torch.cat((out, month, camera), 1)
         out = self.lin2(out)
         return out
 

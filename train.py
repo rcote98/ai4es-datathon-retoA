@@ -15,6 +15,10 @@ from pytorch_lightning import LightningModule
 
 from network_v0 import PredictionNetwork_V0
 from network_v1 import PredictionNetwork_V1
+from network_v2 import PredictionNetwork_V2
+from network_v3 import PredictionNetwork_V3
+
+from network import PredictionModel
 
 from data import ImageDataModule
 from pathlib import Path
@@ -23,18 +27,14 @@ import time
 # Settings
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-FOLDER = Path("models/test2")
+DESTINATION_FOLDER = Path("training")
 
 RANDOM_STATE = 0
+USE_FLAGS = True
+
 seed_everything(RANDOM_STATE)
 
-SETUPS = {
-    "v0": [PredictionNetwork_V0, "safe/v0_best.ckpt", False],
-    "v1": [PredictionNetwork_V1, "safe/v1_best.ckpt", False]
-}
-
 LOAD_BEST = True
-SETUP = SETUPS["v1"]
 
 # Data Setup
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -48,7 +48,8 @@ dm = ImageDataModule(
     batch_size=64,
     dataset_sample=1,
     random_state=RANDOM_STATE,
-    image_shape=[110,330]
+    image_shape=[110,330],
+    use_additional_data=True
 )
 end_time = time.perf_counter()
 print("DONE! ", end_time - start_time, "seconds")
@@ -58,9 +59,11 @@ print("DONE! ", end_time - start_time, "seconds")
 
 print("Creating model...", end="")
 start_time = time.perf_counter()
-model: LightningModule = SETUP[0](
+model = PredictionModel(
+    num_classes=3,
+    flags_size=dm.flags_size,
     learning_rate=1e-5
-)
+    )
 end_time = time.perf_counter()
 print("DONE! ", end_time - start_time, "seconds")
 
@@ -75,11 +78,11 @@ start_time = time.perf_counter()
 
 early_stop = EarlyStopping(monitor="val_mae", mode="min", patience=5)
 lr_monitor = LearningRateMonitor(logging_interval='step')
-model_checkpoint = ModelCheckpoint(FOLDER, save_last=True)
+model_checkpoint = ModelCheckpoint(DESTINATION_FOLDER , monitor="val_mae", mode="min")
 
 trainer = Trainer(
     accelerator="gpu",
-    default_root_dir=FOLDER,
+    default_root_dir=DESTINATION_FOLDER,
     callbacks=[lr_monitor, model_checkpoint, early_stop],
     log_every_n_steps=1,
     check_val_every_n_epoch=1,
