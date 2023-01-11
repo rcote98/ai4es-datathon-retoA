@@ -11,12 +11,6 @@ Quite self explanatory.
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning import LightningModule
-
-from network_v0 import PredictionNetwork_V0
-from network_v1 import PredictionNetwork_V1
-from network_v2 import PredictionNetwork_V2
-from network_v3 import PredictionNetwork_V3
 
 from network import PredictionModel
 
