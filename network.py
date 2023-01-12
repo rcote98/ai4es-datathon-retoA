@@ -19,93 +19,70 @@ import torch
 
 import numpy as np
 
-from network_aux import ConvEncoder, LinSeq
+from architecture import DenseNet
 
 # =========================================================================== #
 # =========================================================================== #
 
-class BasicConvolutionalRegressor(LightningModule):
+class PredictionModel(LightningModule):
 
-    def __init__(self,      
-        learning_rate: float = 1e-5
+    def __init__(self,     
+        num_classes: int = 3,
+        flags_size: int = None,
+        learning_rate: float = 1e-5,
         ):
 
         super().__init__()
         self.save_hyperparameters()
 
+        self.num_classes = num_classes
         self.learning_rate = learning_rate
+        self.flags_size = flags_size
 
-        # main encoder
-        self.encoder = ConvEncoder(
-            in_channels=5,
-            out_channels=128,
-            conv_kernel_size=3,
-            pool_kernel_size=3,
-            img_height=110,
-            img_width=330
-        )
-
-        encoder_out_feats = self.encoder.get_output_shape()
-
-        self.decoder = nn.Sequential(
-            LinSeq(in_features=encoder_out_feats,
-            hid_features=encoder_out_feats*2,
-            out_features=3,
-            hid_layers=0), nn.Sigmoid())
-
+        self.densenet = DenseNet(flags_size=self.flags_size)
+        
         for phase in ["train", "val", "test"]:
-                # self.__setattr__(f"{phase}_r2", tm.R2Score())
+                self.__setattr__(f"{phase}_r2", tm.R2Score(num_outputs=3))
                 self.__setattr__(f"{phase}_mae",  tm.MeanAbsoluteError())
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """ Use for inference only (separate from training_step)"""
-        return self.decoder(self.encoder(x))
+        return self.densenet(x)
 
     # STEPS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-    # def predict_step(self, batch, batch_idx):
-
-    #     """ Prediction step, skips auxiliary tasks. """
-
-    #     if self.tasks.main:
-    #         shared = self.conv_encoder(batch)
-    #         result = self.main_decoder(shared)
-    #         return result
-    #     else:
-    #         raise NotImplementedError()
-
-    def _inner_step(self, batch, stage: str = None):
+    def _inner_step(self, batch: tuple[torch.Tensor], stage: str = None):
 
         """ Common actions for training, test and eval steps. """
-
-        # x[0] is the time series
-        # x[1] are the sim frames
         
         x, y = batch
-
         results = self(x)    
         loss = nn.functional.mse_loss(results, y)
 
-        #r2 = self.__getattr__(f"{stage}_r2")(results, y)
+        r2 = self.__getattr__(f"{stage}_r2")(results, y)
         mae = self.__getattr__(f"{stage}_mae")(results, y)
             
         if stage == "train":
             self.log(f"{stage}_loss", loss, sync_dist=True)
-            # self.log(f"{stage}_r2", r2, prog_bar=True, sync_dist=True)
+            self.log(f"{stage}_r2", r2, prog_bar=True, sync_dist=True)
             self.log(f"{stage}_mae", mae, prog_bar=True, sync_dist=True)
 
         return loss.to(torch.float32)
 
-    def training_step(self, batch, batch_idx):
+    def predict_step(self, batch: torch.Tensor, batch_idx: int):
+        """ Prediction step. """
+        return self(batch)
+
+    def training_step(self, batch: tuple[torch.Tensor], batch_idx: int):
         """ Training step. """
         return self._inner_step(batch, stage="train")
         
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: tuple[torch.Tensor], batch_idx: int):
         """ Validation step. """
         return self._inner_step(batch, stage="val")
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: tuple[torch.Tensor], batch_idx: int):
         """ Test step. """
         return self._inner_step(batch, stage="val")
 
@@ -121,7 +98,7 @@ class BasicConvolutionalRegressor(LightningModule):
             self.log(f"{stage}_loss", loss, sync_dist=True)
 
         # metrics to analyze
-        metrics = ["mae"]#, "r2"]
+        metrics = ["mae", "r2"]
 
         for metric in metrics:
             mstring = f"{stage}_{metric}"
