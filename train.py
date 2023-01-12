@@ -64,6 +64,7 @@ lr_monitor = LearningRateMonitor(logging_interval='step')
 model_checkpoint = ModelCheckpoint(FOLDER, save_last=True)
 
 trainer = Trainer(
+    accelerator=None,
     default_root_dir=FOLDER,
     callbacks=[lr_monitor, model_checkpoint, early_stop],
     log_every_n_steps=1,
