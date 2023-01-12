@@ -19,7 +19,7 @@ import torch
 
 import numpy as np
 
-from arch_v2 import DenseNet
+from architecture import DenseNet
 
 # =========================================================================== #
 # =========================================================================== #
@@ -37,11 +37,12 @@ class PredictionModel(LightningModule):
 
         self.num_classes = num_classes
         self.learning_rate = learning_rate
+        self.flags_size = flags_size
 
-        self.densenet = DenseNet(flags_size=flags_size)
+        self.densenet = DenseNet(flags_size=self.flags_size)
         
         for phase in ["train", "val", "test"]:
-                # self.__setattr__(f"{phase}_r2", tm.R2Score())
+                self.__setattr__(f"{phase}_r2", tm.R2Score(num_outputs=3))
                 self.__setattr__(f"{phase}_mae",  tm.MeanAbsoluteError())
 
     def forward(self, x: torch.Tensor):
@@ -59,12 +60,12 @@ class PredictionModel(LightningModule):
         results = self(x)    
         loss = nn.functional.mse_loss(results, y)
 
-        # r2 = self.__getattr__(f"{stage}_r2")(results, y)
+        r2 = self.__getattr__(f"{stage}_r2")(results, y)
         mae = self.__getattr__(f"{stage}_mae")(results, y)
             
         if stage == "train":
             self.log(f"{stage}_loss", loss, sync_dist=True)
-            # self.log(f"{stage}_r2", r2, prog_bar=True, sync_dist=True)
+            self.log(f"{stage}_r2", r2, prog_bar=True, sync_dist=True)
             self.log(f"{stage}_mae", mae, prog_bar=True, sync_dist=True)
 
         return loss.to(torch.float32)
@@ -97,7 +98,7 @@ class PredictionModel(LightningModule):
             self.log(f"{stage}_loss", loss, sync_dist=True)
 
         # metrics to analyze
-        metrics = ["mae"]#, "r2"]
+        metrics = ["mae", "r2"]
 
         for metric in metrics:
             mstring = f"{stage}_{metric}"

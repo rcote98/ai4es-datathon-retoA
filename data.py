@@ -188,7 +188,7 @@ class ImageDataset(Dataset):
             labels = torch.Tensor(labels)/100
 
         if self.use_flags:
-            flags = torch.cat((self.month[idx], self.camera[idx]), 1) 
+            flags = torch.cat((self.month[idx], self.camera[idx])) 
             if self.use_labels:
                 return (image, flags), labels
             else:
@@ -236,11 +236,11 @@ class ImageDataModule(LightningDataModule):
 
             for df in [self.train_dataset, self.pred_dataset]:
 
-                dataset["CAMERA"] = dataset["PLOT_FILE"].str.split("/").str[1]
-                dataset["DATE"] = pd.to_datetime(dataset["PLOT_FILE"].str.split("/").str[3].str.split("_").str[0])
-                dataset["MONTH"] = dataset["DATE"].dt.month
+                df["CAMERA"] = df["PLOT_FILE"].str.split("/").str[1]
+                df["DATE"] = pd.to_datetime(df["PLOT_FILE"].str.split("/").str[3].str.split("_").str[0])
+                df["MONTH"] = df["DATE"].dt.month
 
-            self.flags_size = 12 + dataset["CAMERA"].nunique()
+            self.flags_size = 12 + df["CAMERA"].nunique()
         else:
             self.flags_size = None
 
@@ -248,7 +248,7 @@ class ImageDataModule(LightningDataModule):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
         if dataset_sample is not None:
-            dataset = dataset.sample(frac=dataset_sample, random_state=random_state).reset_index()
+            self.train_dataset = self.train_dataset.sample(frac=dataset_sample, random_state=random_state).reset_index()
 
         # Set attributes
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
@@ -266,7 +266,7 @@ class ImageDataModule(LightningDataModule):
         # Train/eval/test split
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-        idx_train_eval, idx_test = train_test_split(np.arange(len(dataset)), test_size=self.test_size, 
+        idx_train_eval, idx_test = train_test_split(np.arange(len(self.train_dataset)), test_size=self.test_size, 
             random_state=self.random_state, shuffle=True)
 
         idx_train, idx_eval = train_test_split(idx_train_eval, test_size=self.eval_size, 
@@ -275,12 +275,12 @@ class ImageDataModule(LightningDataModule):
         # Create datasets
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-        self.ds_train = ImageDataset(dataset.iloc[idx_train].reset_index(), 
-            image_shape=self.image_shape, use_additional_data=self.use_additional_data)
-        self.ds_eval  = ImageDataset(dataset.iloc[idx_eval].reset_index(), 
-            image_shape=self.image_shape, use_additional_data=self.use_additional_data)
-        self.ds_test  = ImageDataset(dataset.iloc[idx_test].reset_index(), 
-            image_shape=self.image_shape, use_additional_data=self.use_additional_data)
+        self.ds_train = ImageDataset(self.train_dataset.iloc[idx_train].reset_index(), 
+            image_shape=self.image_shape, use_flags=self.use_flags)
+        self.ds_eval  = ImageDataset(self.train_dataset.iloc[idx_eval].reset_index(), 
+            image_shape=self.image_shape, use_flags=self.use_flags)
+        self.ds_test  = ImageDataset(self.train_dataset.iloc[idx_test].reset_index(), 
+            image_shape=self.image_shape, use_flags=self.use_flags)
 
         # Calculate normalization constants (not f***ing trivial)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
@@ -334,8 +334,7 @@ class ImageDataModule(LightningDataModule):
     def predict_dataloader(self):
         """ Returns the test DataLoader. """
         return DataLoader(self.ds_test, batch_size=self.batch_size, 
-            shuffle=False, num_workers=self.num_workers) 
-
+            shuffle=False, num_workers=self.num_workers)
 
 # =========================================================================== #
 # =========================================================================== #

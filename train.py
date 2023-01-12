@@ -4,9 +4,8 @@ Trains the neural network.
 Quite self explanatory.
 
 @author Raúl Coterillo
-@version ??-12-2022
+@version 01-2023
 """
-
 
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
@@ -28,7 +27,7 @@ USE_FLAGS = True
 
 seed_everything(RANDOM_STATE)
 
-LOAD_BEST = True
+LOAD_BEST = False
 
 # Data Setup
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -36,14 +35,14 @@ LOAD_BEST = True
 print("Computing dataset...")
 start_time = time.perf_counter()
 dm = ImageDataModule(
-    csv_file="csvs/train.csv",
+    train_csv_file="csvs/train.csv",
     test_size=0.2,
     eval_size=0.2,
     batch_size=64,
     dataset_sample=1,
     random_state=RANDOM_STATE,
     image_shape=[110,330],
-    use_additional_data=True
+    use_flags=True
 )
 end_time = time.perf_counter()
 print("DONE! ", end_time - start_time, "seconds")
@@ -62,7 +61,7 @@ end_time = time.perf_counter()
 print("DONE! ", end_time - start_time, "seconds")
 
 if LOAD_BEST:
-    model = model.load_from_checkpoint(SETUP[1])
+    model = model.load_from_checkpoint("xd")
 
 # Trainer Setup
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -75,12 +74,12 @@ lr_monitor = LearningRateMonitor(logging_interval='step')
 model_checkpoint = ModelCheckpoint(DESTINATION_FOLDER , monitor="val_mae", mode="min")
 
 trainer = Trainer(
-    accelerator="gpu",
+    accelerator="cpu",
     default_root_dir=DESTINATION_FOLDER,
     callbacks=[lr_monitor, model_checkpoint, early_stop],
     log_every_n_steps=1,
     check_val_every_n_epoch=1,
-    max_epochs=200, 
+    max_epochs=200,
     deterministic = True
 )
 

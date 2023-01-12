@@ -8,6 +8,7 @@ https://arxiv.org/abs/1608.06993).
 Modifications:
  - increased input channels from 3 to 5
  - decreased growth rate from 64 to 12 (similar performance, less parameters)
+ - added custom projection head to use flags (camera/month/etc)
 
 @version 2022-12
 @author Raúl Coterillo
@@ -137,7 +138,7 @@ class DenseNet(nn.Module):
         
         self.lin2 = nn.Sequential()
         self.lin2.add_module("lin0", nn.Linear(in_features=fts//2 + fgs, out_features=num_classes))    
-        self.lin2.add_module("sig0", nn.Sigmoid(inplace=True))
+        self.lin2.add_module("sig0", nn.Sigmoid())
 
         # Official weight initizalization from torch repo.
         for m in self.modules():
@@ -154,7 +155,7 @@ class DenseNet(nn.Module):
         # if no flags are used
         if self.flags_size is None:
             
-            out = self.features(x)
+            out = self.features(x.to(torch.float32))
             out = F.relu(out, inplace=True)
             out = F.adaptive_avg_pool2d(out, (1, 1))
             out = torch.flatten(out, 1)
@@ -164,6 +165,8 @@ class DenseNet(nn.Module):
         # if flags are used
         else:
             image, flags = x[0], x[1]
+            image: torch.Tensor = image.to(torch.float32)
+            flags: torch.Tensor = flags.to(torch.float32)
 
             out = self.features(image)
             out = F.relu(out, inplace=True)
